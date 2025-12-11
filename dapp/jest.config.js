@@ -7,6 +7,7 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
+  setupFiles: ['<rootDir>/jest.polyfill.js'], // Ejecutar ANTES de setupFilesAfterEnv
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
@@ -24,6 +25,13 @@ const customJestConfig = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
+  // Configuración para React 19
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
+  // Configuración para evitar problemas de limpieza con Next.js 16
+  detectOpenHandles: false,
+  forceExit: false,
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
