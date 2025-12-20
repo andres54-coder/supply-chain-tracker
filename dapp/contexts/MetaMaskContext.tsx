@@ -35,6 +35,28 @@ const STORAGE_KEY = "metamask_connected";
 
 /**
  * Provider de MetaMask que gestiona la conexión con la wallet
+ * 
+ * @description Contexto React que proporciona funcionalidad completa de conexión con MetaMask:
+ *              - Conexión/desconexión de wallet
+ *              - Persistencia en localStorage
+ *              - Reconexión automática al recargar página
+ *              - Detección de cambios de cuenta y red
+ *              - Invalidación automática de queries de React Query al cambiar cuenta
+ * 
+ * @param children Componentes hijos que tendrán acceso al contexto
+ * 
+ * @example
+ * ```tsx
+ * <MetaMaskProvider>
+ *   <App />
+ * </MetaMaskProvider>
+ * ```
+ * 
+ * @remarks
+ * - Usa `window.ethereum` para interactuar con MetaMask
+ * - Valida que la red sea Chain ID 31337 (Anvil)
+ * - Intenta cambiar automáticamente a la red correcta si es necesario
+ * - Limpia queries de React Query cuando cambia la cuenta para evitar datos mezclados
  */
 export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
@@ -52,6 +74,16 @@ export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Intenta cambiar a la red correcta automáticamente
+   * 
+   * @description Intenta cambiar a la red Anvil (Chain ID 31337). Si la red no existe,
+   *              intenta agregarla automáticamente.
+   * 
+   * @returns Promise<boolean> true si el cambio fue exitoso, false en caso contrario
+   * 
+   * @remarks
+   * - Primero intenta cambiar a la red si ya existe
+   * - Si la red no existe (error 4902), intenta agregarla
+   * - Requiere que window.ethereum esté disponible
    */
   const switchToCorrectNetwork = useCallback(async (): Promise<boolean> => {
     if (!window.ethereum) return false;
@@ -111,7 +143,19 @@ export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * Valida que la red sea la correcta (Chain ID 31337 para Anvil)
+   * Valida que la red conectada sea la correcta (Chain ID 31337 para Anvil)
+   * 
+   * @description Verifica que MetaMask esté conectado a la red Anvil local.
+   *              Si no está en la red correcta, intenta cambiar automáticamente.
+   * 
+   * @param provider Instancia de BrowserProvider de ethers.js
+   * @returns Promise<boolean> true si la red es correcta, false en caso contrario
+   * 
+   * @remarks
+   * - Obtiene el chainId directamente desde window.ethereum para mayor confiabilidad
+   * - Compara con NETWORK_CONFIG.chainId (31337)
+   * - Intenta cambiar automáticamente si la red es incorrecta
+   * - Actualiza el estado con error si la validación falla
    */
   const validateChain = useCallback(async (provider: BrowserProvider): Promise<boolean> => {
     try {
@@ -184,6 +228,19 @@ export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Conecta la wallet MetaMask
+   * 
+   * @description Solicita permisos a MetaMask para acceder a las cuentas del usuario.
+   *              Valida la red, obtiene el signer y persiste la conexión en localStorage.
+   * 
+   * @throws Error si MetaMask no está instalado
+   * @throws Error si el usuario rechaza la conexión
+   * @throws Error si la red no es válida y no se puede cambiar
+   * 
+   * @remarks
+   * - Usa wallet_requestPermissions para forzar selección de cuenta
+   * - Valida que la red sea Chain ID 31337 (Anvil)
+   * - Persiste la conexión en localStorage para reconexión automática
+   * - Actualiza el estado con account, provider y signer
    */
   const connect = useCallback(async () => {
     try {
@@ -292,6 +349,15 @@ export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Desconecta la wallet y revoca permisos para forzar selección de cuenta en próxima conexión
+   * 
+   * @description Desconecta la wallet MetaMask, revoca permisos, limpia el estado y
+   *              elimina todas las queries de React Query relacionadas con la cuenta actual.
+   * 
+   * @remarks
+   * - Revoca permisos de MetaMask para forzar selección de cuenta en próxima conexión
+   * - Limpia todas las queries de React Query relacionadas con la cuenta actual
+   * - Elimina la persistencia en localStorage
+   * - Resetea el estado a valores iniciales
    */
   const disconnect = useCallback(async () => {
     const currentAccount = state.account;
@@ -335,7 +401,19 @@ export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
   }, [state.account, queryClient]);
 
   /**
-   * Firma un mensaje
+   * Firma un mensaje usando el signer actual
+   * 
+   * @description Firma un mensaje con la clave privada de la cuenta conectada.
+   * 
+   * @param message Mensaje a firmar (string)
+   * @returns Promise<string> Firma del mensaje en formato hexadecimal
+   * 
+   * @throws Error si no hay signer disponible
+   * 
+   * @example
+   * ```ts
+   * const signature = await signMessage("Hello, World!");
+   * ```
    */
   const signMessage = useCallback(async (message: string): Promise<string> => {
     if (!state.signer) {
@@ -346,7 +424,17 @@ export function MetaMaskProvider({ children }: { children: React.ReactNode }) {
   }, [state.signer]);
 
   /**
-   * Verifica la conexión actual
+   * Verifica y restaura la conexión con MetaMask
+   * 
+   * @description Verifica si hay una conexión persistida en localStorage y restaura
+   *              la conexión automáticamente. Valida la red y actualiza el estado.
+   * 
+   * @remarks
+   * - Se ejecuta automáticamente al montar el componente
+   * - Verifica si hay una conexión guardada en localStorage
+   * - Valida que la red sea correcta (Chain ID 31337)
+   * - Limpia queries de cuenta anterior si cambió la cuenta
+   * - Actualiza el estado con la información de la conexión
    */
   const checkConnection = useCallback(async () => {
     if (!window.ethereum) {

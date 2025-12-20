@@ -8,6 +8,23 @@ import { toast } from "@/components/ui/Toaster";
 
 /**
  * Hook para interactuar con el contrato SupplyChain
+ * 
+ * @description Proporciona funciones wrapper para todas las operaciones del contrato,
+ *              maneja estados de carga y errores, y muestra notificaciones toast.
+ * 
+ * @example
+ * ```tsx
+ * const { createToken, isLoading, error } = useContract();
+ * 
+ * const handleCreate = async () => {
+ *   const success = await createToken("Trigo", 1000n, "{}", 0n);
+ *   if (success) {
+ *     // Token creado exitosamente
+ *   }
+ * };
+ * ```
+ * 
+ * @returns Objeto con funciones del contrato, estados de carga y errores
  */
 export function useContract() {
   const { signer, provider, account, isConnected } = useMetaMask();
@@ -21,7 +38,24 @@ export function useContract() {
   }, [signer, provider]);
 
   /**
-   * Ejecuta una función del contrato y maneja errores
+   * Ejecuta una función del contrato y maneja errores automáticamente
+   * 
+   * @template T Tipo de retorno de la función
+   * @param fn Función asíncrona que ejecuta la llamada al contrato
+   * @param options Opciones para personalizar el manejo de errores y notificaciones
+   * @param options.successMessage Mensaje a mostrar en toast cuando la operación es exitosa
+   * @param options.errorMessage Mensaje personalizado para errores
+   * @param options.showSuccess Si es false, no muestra toast de éxito (default: true)
+   * @param options.showError Si es false, no muestra toast de error (default: true)
+   * @returns Resultado de la función o null si hay error
+   * 
+   * @example
+   * ```ts
+   * const result = await executeContractCall(
+   *   async () => await contract.createToken("Trigo", 1000n, "{}", 0n),
+   *   { successMessage: "Token creado", errorMessage: "Error al crear token" }
+   * );
+   * ```
    */
   const executeContractCall = useCallback(
     async <T,>(
@@ -219,7 +253,27 @@ export function useContract() {
   // ============ Gestión de Tokens ============
 
   /**
-   * Crea un nuevo token
+   * Crea un nuevo token en el contrato
+   * 
+   * @param name Nombre del producto o materia prima
+   * @param totalSupply Cantidad total de unidades del token (debe ser > 0)
+   * @param features Metadatos JSON como string (puede ser "{}" si no hay metadatos)
+   * @param parentId ID del token padre (0n para materias primas, > 0n para productos derivados)
+   * @returns Promise<boolean> true si la creación fue exitosa, false en caso contrario
+   * 
+   * @remarks
+   * - Producer solo puede crear tokens sin parentId (materias primas)
+   * - Factory y Retailer deben especificar un parentId válido y tener balance del token padre
+   * - El usuario debe estar aprobado para crear tokens
+   * 
+   * @example
+   * ```ts
+   * // Crear materia prima (Producer)
+   * await createToken("Trigo Orgánico", 1000n, '{"organic": true}', 0n);
+   * 
+   * // Crear producto derivado (Factory)
+   * await createToken("Harina", 500n, '{"type": "whole wheat"}', 1n);
+   * ```
    */
   const createToken = useCallback(
     async (
@@ -302,7 +356,24 @@ export function useContract() {
   // ============ Gestión de Transferencias ============
 
   /**
-   * Solicita una transferencia de tokens
+   * Solicita una transferencia de tokens a otro usuario
+   * 
+   * @param to Dirección Ethereum del destinatario (debe estar registrado y aprobado)
+   * @param tokenId ID del token a transferir
+   * @param amount Cantidad de tokens a transferir (debe ser > 0 y <= balance del remitente)
+   * @returns Promise<boolean> true si la solicitud fue exitosa, false en caso contrario
+   * 
+   * @remarks
+   * - Crea una transferencia con estado Pending que debe ser aceptada por el destinatario
+   * - Valida el flujo de roles: Producer→Factory, Factory→Retailer, Retailer→Consumer
+   * - Consumer no puede transferir
+   * - El remitente debe tener balance suficiente
+   * 
+   * @example
+   * ```ts
+   * // Producer transfiere a Factory
+   * await transfer("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", 1n, 100n);
+   * ```
    */
   const transfer = useCallback(
     async (to: string, tokenId: bigint, amount: bigint): Promise<boolean> => {

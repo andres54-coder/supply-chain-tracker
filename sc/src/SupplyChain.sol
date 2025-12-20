@@ -295,11 +295,17 @@ contract SupplyChain {
     
     // ============ Token Management Functions ============
     
-    /// @notice Crea un nuevo token
+    /// @notice Crea un nuevo token que representa un producto o materia prima
+    /// @dev El usuario debe estar aprobado. Producer solo puede crear materias primas (sin parentId).
+    ///      Factory y Retailer deben especificar un parentId válido y tener balance del token padre.
     /// @param name Nombre del producto
-    /// @param totalSupply Suministro total del token
-    /// @param features Metadatos JSON como string
-    /// @param parentId ID del token padre (0 si es materia prima)
+    /// @param totalSupply Suministro total del token (debe ser > 0)
+    /// @param features Metadatos JSON como string (puede ser "{}" si no hay metadatos)
+    /// @param parentId ID del token padre (0 si es materia prima, > 0 si es producto derivado)
+    /// @custom:requirements Usuario debe estar Approved
+    /// @custom:requirements Producer: parentId debe ser 0
+    /// @custom:requirements Factory/Retailer: parentId debe ser > 0 y usuario debe tener balance del token padre
+    /// @custom:emits TokenCreated(tokenId, creator, name, totalSupply)
     function createToken(
         string memory name,
         uint256 totalSupply,
@@ -411,9 +417,18 @@ contract SupplyChain {
     // ============ Transfer Management Functions ============
     
     /// @notice Solicita una transferencia de tokens a otro usuario
-    /// @param to Dirección del destinatario
-    /// @param tokenId ID del token a transferir
-    /// @param amount Cantidad a transferir
+    /// @dev Crea una transferencia con estado Pending que debe ser aceptada por el destinatario.
+    ///      Valida el flujo de roles: Producer→Factory, Factory→Retailer, Retailer→Consumer.
+    ///      Consumer no puede transferir.
+    /// @param to Dirección del destinatario (debe estar registrado y aprobado)
+    /// @param tokenId ID del token a transferir (debe existir)
+    /// @param amount Cantidad a transferir (debe ser > 0 y <= balance del remitente)
+    /// @custom:requirements Usuario debe estar Approved
+    /// @custom:requirements Remitente debe tener balance suficiente
+    /// @custom:requirements Destinatario debe estar registrado y aprobado
+    /// @custom:requirements Flujo de roles debe ser válido según la cadena de suministro
+    /// @custom:requirements Consumer no puede ser remitente
+    /// @custom:emits TransferRequested(transferId, from, to, tokenId, amount)
     function transfer(address to, uint256 tokenId, uint256 amount) public onlyApprovedUser {
         require(to != address(0), "Invalid recipient address");
         require(to != msg.sender, "Cannot transfer to yourself");

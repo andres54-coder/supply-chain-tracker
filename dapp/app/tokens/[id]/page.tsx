@@ -236,9 +236,9 @@ export default function TokenDetailPage() {
                     {parentToken && (
                       <div className="mt-2 p-2 rounded-md bg-muted">
                         <p className="text-sm font-medium">{parentToken.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                           Creado por: <AddressDisplay address={parentToken.creator} showCopyButton={false} truncate={true} />
-                        </p>
+                        </div>
                       </div>
                     )}
                   </div>
