@@ -95,7 +95,7 @@ contract SupplyChainTest is Test {
         assertEq(user.userAddress, producer);
         assertEq(user.role, "Producer");
         assertEq(uint256(user.status), uint256(SupplyChain.UserStatus.Pending));
-        assertEq(supplyChain.addressToUserId(producer), 1);
+        assertEq(supplyChain.addressToUserId(producer), 2); // Admin tiene userId = 1
     }
     
     /// @notice Test: Intentar registrar con rol inválido
@@ -161,7 +161,7 @@ contract SupplyChainTest is Test {
         supplyChain.changeStatusUser(producer, SupplyChain.UserStatus.Approved);
         
         SupplyChain.User memory user = supplyChain.getUserInfo(producer);
-        assertEq(user.id, 1);
+        assertEq(user.id, 2); // Admin tiene userId = 1
         assertEq(user.userAddress, producer);
         assertEq(user.role, "Producer");
         assertEq(uint256(user.status), uint256(SupplyChain.UserStatus.Approved));
